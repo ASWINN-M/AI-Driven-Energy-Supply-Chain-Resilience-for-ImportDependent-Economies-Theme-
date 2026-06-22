@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Energy Supply Chain Risk Monitor</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/dist/tabler-icons.min.css">
+<style>
+:root {
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --color-text-primary: #1a1a18;
+  --color-text-secondary: #5c5c56;
+  --color-text-tertiary: #888780;
+  --color-background-primary: #fff;
+  --color-background-secondary: #f4f4f0;
+  --color-border-tertiary: #e4e4de;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: #fafaf8; color: var(--color-text-primary); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+.dash { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+.header-left h1 { font-size: 18px; font-weight: 600; color: var(--color-text-primary); }
+.header-left p { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; }
+.header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.live-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 6px 12px; background: var(--color-background-primary); }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #3B6D11; animation: pulse 2s infinite; }
+.live-dot.scanning { background: #EF9F27; animation: scanPulse 0.6s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes scanPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.4)} }
+.btn { font-size: 12px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); border-radius: var(--border-radius-md); padding: 7px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--color-text-primary); transition: background 0.15s, border-color 0.15s, transform 0.1s; }
+.btn:hover { background: var(--color-background-secondary); }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+.btn-primary:hover { background: #333; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn.active { border-color: #1a1a18; background: var(--color-background-secondary); }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.metric { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 1rem; transition: box-shadow 0.2s; }
+.metric.highlight { box-shadow: 0 0 0 2px #EF9F27; }
+.metric-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.metric-value { font-size: 22px; font-weight: 600; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.metric-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 3px; }
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+.toolbar-label { font-size: 12px; color: var(--color-text-secondary); }
+.chip { font-size: 11px; padding: 5px 12px; border-radius: 99px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); cursor: pointer; transition: all 0.15s; }
+.chip:hover { border-color: #888; }
+.chip.active { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+.threshold-wrap { display: flex; align-items: center; gap: 8px; margin-left: auto; font-size: 12px; color: var(--color-text-secondary); }
+.threshold-wrap input[type=range] { width: 90px; accent-color: #E24B4A; }
+.corridors { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+.corridor-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; position: relative; }
+.corridor-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+.corridor-card.selected { box-shadow: 0 0 0 2px #1a1a18; }
+.corridor-card.dimmed { opacity: 0.55; }
+.corridor-card.critical { border-color: #A32D2D; border-width: 1.5px; }
+.corridor-card.elevated { border-color: #854F0B; border-width: 1.5px; }
+.corridor-card.updating::after { content: ''; position: absolute; inset: 0; border-radius: var(--border-radius-lg); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent); animation: shimmer 1.2s infinite; }
+@keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.card-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.status-badge { font-size: 11px; padding: 3px 10px; border-radius: var(--border-radius-md); font-weight: 500; }
+.badge-critical { background: #FCEBEB; color: #A32D2D; }
+.badge-elevated { background: #FAEEDA; color: #854F0B; }
+.badge-nominal { background: #EAF3DE; color: #3B6D11; }
+.score-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
+.score-num { font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.score-num.critical { color: #A32D2D; }
+.score-num.elevated { color: #BA7517; }
+.score-num.nominal { color: #3B6D11; }
+.score-denom { font-size: 14px; color: var(--color-text-secondary); }
+.score-bar-bg { height: 5px; background: var(--color-background-secondary); border-radius: 99px; margin-bottom: 12px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 99px; transition: width 1s ease; width: 0; }
+.fill-critical { background: #E24B4A; }
+.fill-elevated { background: #EF9F27; }
+.fill-nominal { background: #639922; }
+.factors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.factor { font-size: 12px; }
+.factor-label { color: var(--color-text-secondary); margin-bottom: 2px; }
+.factor-bar-bg { height: 3px; background: var(--color-background-secondary); border-radius: 99px; overflow: hidden; }
+.factor-bar-fill { height: 100%; border-radius: 99px; transition: width 0.8s ease; }
+.alert-box { border-radius: var(--border-radius-md); padding: 10px 12px; font-size: 12px; color: #791F1F; line-height: 1.5; max-height: 60px; overflow: hidden; transition: max-height 0.3s; }
+.alert-box.expanded { max-height: 200px; }
+.alert-box i { margin-right: 4px; font-size: 14px; vertical-align: -2px; }
+.alert-box.warn { background: #FAEEDA; color: #633806; }
+.alert-box.ok { background: #EAF3DE; color: #27500A; }
+.alert-box.critical { background: #FCEBEB; color: #791F1F; }
+.expand-hint { font-size: 10px; color: var(--color-text-tertiary); margin-top: 6px; }
+.chart-wrap { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; }
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+.chart-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
+.legend-item:hover { background: var(--color-background-secondary); }
+.legend-item.hidden-line { opacity: 0.35; text-decoration: line-through; }
+.legend-dot { width: 10px; height: 2px; display: inline-block; border-radius: 2px; }
+.events { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; margin-bottom: 1.5rem; }
+.events-header { padding: 1rem 1.25rem; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.event-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 1.25rem; border-bottom: 0.5px solid var(--color-border-tertiary); cursor: pointer; transition: background 0.15s; }
+.event-row:hover { background: var(--color-background-secondary); }
+.event-row:last-child { border-bottom: none; }
+.event-row.hidden { display: none; }
+.event-row.expanded { background: #fafaf8; }
+.event-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.ev-critical { background: #FCEBEB; color: #A32D2D; }
+.ev-elevated { background: #FAEEDA; color: #854F0B; }
+.ev-nominal { background: #EAF3DE; color: #3B6D11; }
+.event-body { flex: 1; min-width: 0; }
+.event-title { font-size: 13px; color: var(--color-text-primary); font-weight: 500; }
+.event-desc { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; line-height: 1.4; }
+.event-meta { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
+.event-detail { display: none; margin-top: 10px; padding: 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); font-size: 11px; font-family: 'Consolas', monospace; line-height: 1.6; color: var(--color-text-secondary); }
+.event-row.expanded .event-detail { display: block; }
+.sev-chip { font-size: 11px; padding: 2px 8px; border-radius: var(--border-radius-md); flex-shrink: 0; margin-top: 2px; }
+.pipeline-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
+.pipeline-overlay.visible { display: flex; }
+.pipeline-modal { background: #fff; border-radius: var(--border-radius-lg); padding: 1.75rem; max-width: 420px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+.pipeline-modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.pipeline-modal p { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 1.25rem; }
+.pipeline-steps { display: flex; flex-direction: column; gap: 0; }
+.pipeline-step { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-left: 2px solid var(--color-border-tertiary); margin-left: 11px; padding-left: 20px; position: relative; opacity: 0.4; transition: opacity 0.3s; }
+.pipeline-step::before { content: ''; position: absolute; left: -7px; width: 12px; height: 12px; border-radius: 50%; background: var(--color-border-tertiary); border: 2px solid #fff; transition: background 0.3s; }
+.pipeline-step.active { opacity: 1; }
+.pipeline-step.active::before { background: #EF9F27; box-shadow: 0 0 0 3px rgba(239,159,39,0.25); }
+.pipeline-step.done { opacity: 1; }
+.pipeline-step.done::before { background: #3B6D11; }
+.step-label { font-size: 13px; font-weight: 500; }
+.step-sub { font-size: 11px; color: var(--color-text-tertiary); }
+.toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+.toast { background: #1a1a18; color: #fff; padding: 12px 16px; border-radius: var(--border-radius-md); font-size: 13px; max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; display: flex; align-items: flex-start; gap: 10px; }
+.toast.critical { background: #791F1F; }
+.toast i { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.api-status { font-size: 11px; padding: 3px 8px; border-radius: 99px; background: var(--color-background-secondary); color: var(--color-text-tertiary); }
+.api-status.live { background: #EAF3DE; color: #3B6D11; }
+.api-status.offline { background: #FAEEDA; color: #854F0B; }
+</style>
+</head>
+<body>
+
+<div class="dash">
+  <h2 class="sr-only">AI-Driven Energy Supply Chain Risk Dashboard for India's import corridors</h2>
+
+  <div class="header">
+    <div class="header-left">
+      <h1>Energy supply chain risk monitor</h1>
+      <p>India import corridor intelligence — AI-powered disruption scoring</p>
+    </div>
+    <div class="header-actions">
+      <span class="api-status" id="api-status">Demo mode</span>
+      <div class="live-badge">
+        <span class="live-dot" id="live-dot"></span>
+        Live · <span id="last-updated">just now</span>
+      </div>
+      <button class="btn" id="demo-mode-btn" title="Auto-cycle corridors for recording"><i class="ti ti-player-play"></i> Demo tour</button>
+      <button class="btn btn-primary" id="run-analysis-btn"><i class="ti ti-bolt"></i> Run AI analysis</button>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Corridors monitored</div>
+      <div class="metric-value">3</div>
+      <div class="metric-sub">Hormuz · Red Sea · Persian Gulf</div>
+    </div>
+    <div class="metric" id="top-score-metric">
+      <div class="metric-label">Highest risk score</div>
+      <div class="metric-value" id="top-score">—</div>
+      <div class="metric-sub" id="top-corridor">—</div>
+    </div>
+    <div class="metric" id="alert-metric">
+      <div class="metric-label">Active alerts</div>
+      <div class="metric-value" id="alert-count">—</div>
+      <div class="metric-sub">Threshold: <span id="threshold-label">70</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Brent crude (7-day Δ)</div>
+      <div class="metric-value" id="brent-delta">+3.2%</div>
+      <div class="metric-sub" id="brent-price">$84.32 / barrel</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span class="toolbar-label">Focus corridor:</span>
+    <button class="chip active" data-filter="all">All</button>
+    <button class="chip" data-filter="hormuz">Hormuz</button>
+    <button class="chip" data-filter="redsea">Red Sea</button>
+    <button class="chip" data-filter="persian">Persian Gulf</button>
+    <div class="threshold-wrap">
+      <label for="threshold-slider">Alert threshold</label>
+      <input type="range" id="threshold-slider" min="40" max="90" value="70">
+      <span id="threshold-val">70</span>
+    </div>
+  </div>
+
+  <div class="corridors" id="corridors"></div>
+
+  <div class="chart-wrap">
+    <div class="chart-header">
+      <span class="chart-title">7-day risk score trend</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="chart-legend"></div>
+    </div>
+    <div style="position:relative;width:100%;height:220px;">
+      <canvas id="trendChart" role="img" aria-label="Line chart showing 7-day risk score trends for three corridors"></canvas>
+    </div>
+  </div>
+
+  <div class="events">
+    <div class="events-header">
+      <span style="font-size:14px;font-weight:600;color:var(--color-text-primary);">Latest extracted risk events</span>
+      <button class="btn" id="refresh-events-btn"><i class="ti ti-refresh" id="refresh-icon"></i> Refresh feed</button>
+    </div>
+    <div id="events-list"></div>
+  </div>
+</div>
+
+<div class="pipeline-overlay" id="pipeline-overlay">
+  <div class="pipeline-modal">
+    <h3>Running AI pipeline</h3>
+    <p>LangGraph agents fetching news, extracting risk, and scoring corridors…</p>
+    <div class="pipeline-steps">
+      <div class="pipeline-step" data-step="0"><div><div class="step-label">Fetch live headlines</div><div class="step-sub">NewsAPI · Strait of Hormuz</div></div></div>
+      <div class="pipeline-step" data-step="1"><div><div class="step-label">Extract structured risk</div><div class="step-sub">Gemini · corridor, supplier, severity</div></div></div>
+      <div class="pipeline-step" data-step="2"><div><div class="step-label">Pull Brent price signal</div><div class="step-sub">EIA · 7-day delta</div></div></div>
+      <div class="pipeline-step" data-step="3"><div><div class="step-label">Compute weighted score</div><div class="step-sub">Geo 35% · Price 25% · Maritime 25% · SPR 15%</div></div></div>
+      <div class="pipeline-step" data-step="4"><div><div class="step-label">Evaluate threshold &amp; reroute</div><div class="step-sub">Alert if score &gt; threshold</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const API_BASE = 'http://127.0.0.1:8000';
+
+const CORRIDORS = {
+  hormuz: {
+    id: 'hormuz', name: 'Strait of Hormuz', icon: 'ti-flame', sub: 'Iran · UAE · Iraq supply route',
+    score: 78.5, factors: { geo: 85, price: 65, maritime: 75, spr: 55 },
+    trend: [52, 58, 61, 65, 70, 74, 78.5], color: '#E24B4A',
+    alert: 'Reroute protocol activated. Divert 35% of Middle Eastern crude to West African spot tenders. Reallocate 2 VLCCs to US Gulf Coast corridor.',
+    alertType: 'critical'
+  },
+  redsea: {
+    id: 'redsea', name: 'Red Sea', icon: 'ti-waves', sub: 'Houthi-contested route · Bab el-Mandeb',
+    score: 62.1, factors: { geo: 70, price: 60, maritime: 80, spr: 30 },
+    trend: [55, 57, 60, 62, 63, 61, 62.1], color: '#EF9F27', dash: [4, 3],
+    alert: 'Monitor closely. Houthi strike activity elevated. Consider pre-emptive diversification to Cape of Good Hope routing.',
+    alertType: 'warn'
+  },
+  persian: {
+    id: 'persian', name: 'Persian Gulf', icon: 'ti-anchor', sub: 'Saudi Arabia · UAE direct route',
+    score: 28.3, factors: { geo: 30, price: 50, maritime: 20, spr: 15 },
+    trend: [30, 28, 25, 27, 26, 29, 28.3], color: '#639922', dash: [2, 2],
+    alert: 'Status nominal. Persian Gulf route operational. No immediate procurement action required.',
+    alertType: 'ok'
+  }
+};
+
+const EVENTS = [
+  { id: 1, corridor: 'hormuz', sev: 5, level: 'critical', icon: 'ti-alert-triangle',
+    title: 'IRGC conducts unannounced boarding drills near Hormuz',
+    desc: 'Iranian naval vessels intercepted commercial tankers in international waters, raising transit risk for Hormuz corridor.',
+    meta: 'Strait of Hormuz · Iran · military_incident · 2 hrs ago',
+    detail: '{ "corridor": "Strait of Hormuz", "supplier": "Iran", "event_type": "military_incident", "severity_1_to_5": 5, "confidence": 0.92 }' },
+  { id: 2, corridor: 'redsea', sev: 5, level: 'critical', icon: 'ti-ship',
+    title: 'Houthi forces strike commercial vessel in Red Sea lane',
+    desc: 'Attack on cargo vessel near Bab el-Mandeb triggers rerouting alerts for India-bound crude shipments.',
+    meta: 'Red Sea · Other · military_incident · 4 hrs ago',
+    detail: '{ "corridor": "Red Sea", "supplier": "Other", "event_type": "military_incident", "severity_1_to_5": 5, "confidence": 0.88 }' },
+  { id: 3, corridor: 'persian', sev: 3, level: 'elevated', icon: 'ti-trending-up',
+    title: 'Brent crude rises 3.2% on Gulf supply concerns',
+    desc: 'Price shock driven by compounding Hormuz and Red Sea risk signals. 7-day delta now at +3.2%.',
+    meta: 'Persian Gulf · Other · price_shock · 6 hrs ago',
+    detail: '{ "corridor": "Persian Gulf", "event_type": "price_shock", "severity_1_to_5": 3, "brent_delta_pct": 3.2 }' },
+  { id: 4, corridor: 'hormuz', sev: 4, level: 'elevated', icon: 'ti-file-text',
+    title: 'US imposes new sanctions on Iranian oil exports',
+    desc: 'Expanded sanctions targeting Iranian crude shipping companies. Diplomatic escalation risk elevated for Q3.',
+    meta: 'Strait of Hormuz · Iran · sanctions · 8 hrs ago',
+    detail: '{ "corridor": "Strait of Hormuz", "supplier": "Iran", "event_type": "sanctions", "severity_1_to_5": 4, "confidence": 0.95 }' }
+];
+
+let threshold = 70;
+let selectedCorridor = 'all';
+let demoInterval = null;
+let trendChart = null;
+let apiLive = false;
+
+function statusClass(score) {
+  if (score >= threshold) return 'critical';
+  if (score >= threshold - 15) return 'elevated';
+  return 'nominal';
+}
+
+function badgeClass(s) {
+  return s === 'critical' ? 'badge-critical' : s === 'elevated' ? 'badge-elevated' : 'badge-nominal';
+}
+
+function animateValue(el, from, to, duration = 900, suffix = '') {
+  const start = performance.now();
+  const diff = to - from;
+  function tick(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const val = from + diff * eased;
+    el.textContent = (Number.isInteger(to) ? Math.round(val) : val.toFixed(1)) + suffix;
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function renderCorridors() {
+  const container = document.getElementById('corridors');
+  container.innerHTML = Object.values(CORRIDORS).map(c => {
+    const st = statusClass(c.score);
+    const dimmed = selectedCorridor !== 'all' && selectedCorridor !== c.id;
+    const selected = selectedCorridor === c.id;
+    return `
+    <div class="corridor-card ${st} ${dimmed ? 'dimmed' : ''} ${selected ? 'selected' : ''}" data-id="${c.id}">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><i class="ti ${c.icon}"></i> ${c.name}</div>
+          <div class="card-sub">${c.sub}</div>
+        </div>
+        <span class="status-badge ${badgeClass(st)}">${st.charAt(0).toUpperCase() + st.slice(1)}</span>
+      </div>
+      <div class="score-row">
+        <span class="score-num ${st}" data-score="${c.score}">0</span>
+        <span class="score-denom">/ 100</span>
+      </div>
+      <div class="score-bar-bg"><div class="score-bar-fill fill-${st}" data-width="${c.score}%"></div></div>
+      <div class="factors">
+        ${['geo','price','maritime','spr'].map((f, i) => {
+          const labels = ['Geopolitical (35%)','Price signal (25%)','Maritime threat (25%)','SPR buffer (15%)'];
+          const v = c.factors[f];
+          const fc = v >= threshold ? 'critical' : v >= threshold - 15 ? 'elevated' : 'nominal';
+          return `<div class="factor"><div class="factor-label">${labels[i]}</div>
+            <div class="factor-bar-bg"><div class="factor-bar-fill fill-${fc}" data-width="${v}%"></div></div></div>`;
+        }).join('')}
+      </div>
+      <div class="alert-box ${c.alertType}" data-alert="${c.id}"><i class="ti ti-${c.alertType === 'critical' ? 'alert-triangle' : c.alertType === 'warn' ? 'alert-circle' : 'circle-check'}"></i>${c.alert}</div>
+      <div class="expand-hint">Click card to focus · double-click alert to expand</div>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.corridor-card').forEach(card => {
+    card.addEventListener('click', () => selectCorridor(card.dataset.id));
+    card.querySelector('.alert-box').addEventListener('dblclick', e => {
+      e.stopPropagation();
+      e.target.closest('.alert-box').classList.toggle('expanded');
+    });
+  });
+
+  requestAnimationFrame(() => {
+    container.querySelectorAll('[data-score]').forEach(el => animateValue(el, 0, +el.dataset.score));
+    container.querySelectorAll('[data-width]').forEach(el => { el.style.width = el.dataset.width; });
+  });
+}
+
+function renderEvents(filter = 'all') {
+  const list = document.getElementById('events-list');
+  list.innerHTML = EVENTS.map(ev => {
+    const hidden = filter !== 'all' && filter !== ev.corridor;
+    const badge = ev.level === 'critical' ? 'badge-critical' : 'badge-elevated';
+    return `
+    <div class="event-row ${hidden ? 'hidden' : ''}" data-id="${ev.id}" data-corridor="${ev.corridor}">
+      <div class="event-icon ev-${ev.level}"><i class="ti ${ev.icon}" style="font-size:14px;"></i></div>
+      <div class="event-body">
+        <div class="event-title">${ev.title}</div>
+        <div class="event-desc">${ev.desc}</div>
+        <div class="event-meta">${ev.meta}</div>
+        <div class="event-detail">${ev.detail}</div>
+      </div>
+      <span class="status-badge ${badge} sev-chip">Sev ${ev.sev}</span>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('.event-row').forEach(row => {
+    row.addEventListener('click', () => {
+      row.classList.toggle('expanded');
+      if (!row.classList.contains('hidden')) selectCorridor(row.dataset.corridor, false);
+    });
+  });
+}
+
+function updateSummaryMetrics() {
+  const scores = Object.values(CORRIDORS);
+  const top = scores.reduce((a, b) => a.score > b.score ? a : b);
+  const alerts = scores.filter(c => c.score >= threshold).length;
+
+  animateValue(document.getElementById('top-score'), 0, top.score);
+  document.getElementById('top-corridor').textContent = top.name;
+  animateValue(document.getElementById('alert-count'), 0, alerts, 600, '');
+
+  document.getElementById('top-score-metric').classList.toggle('highlight', top.score >= threshold);
+  document.getElementById('alert-metric').classList.toggle('highlight', alerts > 0);
+}
+
+function selectCorridor(id, toggle = true) {
+  if (toggle && selectedCorridor === id) { selectedCorridor = 'all'; }
+  else { selectedCorridor = id; }
+  document.querySelectorAll('.chip[data-filter]').forEach(c => {
+    c.classList.toggle('active', c.dataset.filter === selectedCorridor);
+  });
+  renderCorridors();
+  if (trendChart) {
+    trendChart.data.datasets.forEach((ds, i) => {
+      const key = ['hormuz','redsea','persian'][i];
+      ds.borderWidth = selectedCorridor === 'all' || selectedCorridor === key ? 2.5 : 1;
+      ds.pointRadius = selectedCorridor === 'all' || selectedCorridor === key ? 4 : 2;
+    });
+    trendChart.update('none');
+  }
+  renderEvents(selectedCorridor);
+}
+
+function initChart() {
+  const labels = ['Jun 16','Jun 17','Jun 18','Jun 19','Jun 20','Jun 21','Jun 22'];
+  const keys = ['hormuz','redsea','persian'];
+  const datasets = keys.map(k => {
+    const c = CORRIDORS[k];
+    return { label: c.name.split(' ').slice(-2).join(' ') || c.name, data: [...c.trend],
+      borderColor: c.color, backgroundColor: 'transparent', tension: 0.4,
+      pointRadius: 3, pointBackgroundColor: c.color, borderDash: c.dash || [] };
+  });
+
+  trendChart = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}` } }
+      },
+      scales: {
+        x: { ticks: { font: { size: 11 }, color: '#888780' }, grid: { display: false } },
+        y: { min: 0, max: 100, ticks: { font: { size: 11 }, color: '#888780', stepSize: 25 },
+          grid: { color: 'rgba(136,135,128,0.15)' } }
+      },
+      animation: { duration: 800 }
+    }
+  });
+
+  const legend = document.getElementById('chart-legend');
+  legend.innerHTML = keys.map((k, i) => {
+    const c = CORRIDORS[k];
+    return `<span class="legend-item" data-idx="${i}"><span class="legend-dot" style="background:${c.color}"></span>${c.name}</span>`;
+  }).join('');
+  legend.querySelectorAll('.legend-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const idx = +item.dataset.idx;
+      const meta = trendChart.getDatasetMeta(idx);
+      meta.hidden = !meta.hidden;
+      item.classList.toggle('hidden-line', meta.hidden);
+      trendChart.update();
+    });
+  });
+}
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<i class="ti ti-${type === 'critical' ? 'alert-triangle' : 'info-circle'}"></i><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4500);
+}
+
+async function runPipelineAnimation() {
+  const overlay = document.getElementById('pipeline-overlay');
+  const steps = overlay.querySelectorAll('.pipeline-step');
+  overlay.classList.add('visible');
+  steps.forEach(s => s.classList.remove('active', 'done'));
+
+  for (let i = 0; i < steps.length; i++) {
+    steps[i].classList.add('active');
+    await new Promise(r => setTimeout(r, 700 + Math.random() * 400));
+    steps[i].classList.remove('active');
+    steps[i].classList.add('done');
+  }
+  await new Promise(r => setTimeout(r, 400));
+  overlay.classList.remove('visible');
+}
+
+function mapApiCorridor(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('hormuz')) return 'hormuz';
+  if (n.includes('red sea')) return 'redsea';
+  if (n.includes('persian') || n.includes('gulf')) return 'persian';
+  return 'hormuz';
+}
+
+async function fetchLiveRisk() {
+  try {
+    const res = await fetch(`${API_BASE}/risk`, { signal: AbortSignal.timeout(120000) });
+    if (!res.ok) throw new Error('API error');
+    const data = await res.json();
+    apiLive = true;
+    document.getElementById('api-status').textContent = 'API connected';
+    document.getElementById('api-status').className = 'api-status live';
+
+    const key = mapApiCorridor(data.corridor);
+    const c = CORRIDORS[key];
+    c.score = data.disruption_probability_score;
+    c.trend[c.trend.length - 1] = data.disruption_probability_score;
+    c.alert = data.executable_action;
+    c.alertType = data.threshold_breached ? 'critical' : (c.score >= threshold - 15 ? 'warn' : 'ok');
+
+    if (data.threshold_breached) {
+      showToast(`Threshold breached on ${data.corridor}: score ${data.disruption_probability_score}`, 'critical');
+    } else {
+      showToast(`Analysis complete — ${data.corridor}: ${data.disruption_probability_score}/100`, 'info');
+    }
+    return true;
+  } catch {
+    apiLive = false;
+    document.getElementById('api-status').textContent = 'Demo mode (API offline)';
+    document.getElementById('api-status').className = 'api-status offline';
+    simulateRefresh();
+    showToast('API offline — using demo data with simulated update', 'info');
+    return false;
+  }
+}
+
+function simulateRefresh() {
+  Object.values(CORRIDORS).forEach(c => {
+    const jitter = (Math.random() - 0.5) * 4;
+    c.score = Math.min(100, Math.max(0, +(c.score + jitter).toFixed(1)));
+    c.trend.push(c.score);
+    if (c.trend.length > 7) c.trend.shift();
+    if (c.score >= threshold) { c.alertType = 'critical'; }
+    else if (c.score >= threshold - 15) { c.alertType = 'warn'; }
+    else { c.alertType = 'ok'; }
+  });
+}
+
+async function runAnalysis() {
+  const btn = document.getElementById('run-analysis-btn');
+  const dot = document.getElementById('live-dot');
+  btn.disabled = true;
+  dot.classList.add('scanning');
+
+  document.querySelectorAll('.corridor-card').forEach(c => c.classList.add('updating'));
+
+  await runPipelineAnimation();
+  await fetchLiveRisk();
+
+  renderCorridors();
+  updateSummaryMetrics();
+  if (trendChart) {
+    ['hormuz','redsea','persian'].forEach((k, i) => {
+      trendChart.data.datasets[i].data = [...CORRIDORS[k].trend];
+    });
+    trendChart.update();
+  }
+
+  document.querySelectorAll('.corridor-card').forEach(c => c.classList.remove('updating'));
+  dot.classList.remove('scanning');
+  btn.disabled = false;
+  document.getElementById('last-updated').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function toggleDemoTour() {
+  const btn = document.getElementById('demo-mode-btn');
+  if (demoInterval) {
+    clearInterval(demoInterval);
+    demoInterval = null;
+    btn.classList.remove('active');
+    btn.innerHTML = '<i class="ti ti-player-play"></i> Demo tour';
+    selectCorridor('all', false);
+    return;
+  }
+  btn.classList.add('active');
+  btn.innerHTML = '<i class="ti ti-player-stop"></i> Stop tour';
+  const order = ['hormuz', 'redsea', 'persian', 'all'];
+  let i = 0;
+  selectCorridor(order[0], false);
+  demoInterval = setInterval(() => {
+    i = (i + 1) % order.length;
+    selectCorridor(order[i], false);
+  }, 4000);
+}
+
+document.getElementById('run-analysis-btn').addEventListener('click', runAnalysis);
+document.getElementById('refresh-events-btn').addEventListener('click', runAnalysis);
+document.getElementById('demo-mode-btn').addEventListener('click', toggleDemoTour);
+
+document.querySelectorAll('.chip[data-filter]').forEach(chip => {
+  chip.addEventListener('click', () => selectCorridor(chip.dataset.filter, false));
+});
+
+document.getElementById('threshold-slider').addEventListener('input', e => {
+  threshold = +e.target.value;
+  document.getElementById('threshold-val').textContent = threshold;
+  document.getElementById('threshold-label').textContent = threshold;
+  renderCorridors();
+  updateSummaryMetrics();
+});
+
+renderCorridors();
+renderEvents();
+updateSummaryMetrics();
+initChart();
+document.getElementById('last-updated').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+fetch(`${API_BASE}/risk`, { signal: AbortSignal.timeout(3000) })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(data => {
+    apiLive = true;
+    document.getElementById('api-status').textContent = 'API connected';
+    document.getElementById('api-status').className = 'api-status live';
+    const key = mapApiCorridor(data.corridor);
+    CORRIDORS[key].score = data.disruption_probability_score;
+    CORRIDORS[key].trend[6] = data.disruption_probability_score;
+    CORRIDORS[key].alert = data.executable_action;
+    CORRIDORS[key].alertType = data.threshold_breached ? 'critical' : 'warn';
+    renderCorridors();
+    updateSummaryMetrics();
+    trendChart.data.datasets[['hormuz','redsea','persian'].indexOf(key)].data[6] = data.disruption_probability_score;
+    trendChart.update();
+  })
+  .catch(() => {});
+</script>
+</body>
+</html>

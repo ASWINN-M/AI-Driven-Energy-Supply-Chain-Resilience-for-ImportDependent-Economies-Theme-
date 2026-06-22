@@ -4,5 +4,5 @@ python-dotenv
 langgraph
 langchain
 ipykernel
-google
-graph
+google-genai
+fastapi[standard]
