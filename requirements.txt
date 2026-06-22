@@ -1,0 +1,7 @@
+requests
+psycopg
+python-dotenv
+langgraph
+langchain
+ipykernel
+google
